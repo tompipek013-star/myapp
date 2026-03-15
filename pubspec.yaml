@@ -1,16 +1,14 @@
-name: spartak_app
-description: "Aplikace pro fotbalový klub Spartak Smržovka"
-publish_to: 'none'
-
+name: spartak_smrzovka
+description: Oficiální aplikace FK Smržovka
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.2.0 <4.0.0'
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
+  # Tyto dvě věci potřebujeme pro databázi a mazání:
   firebase_core: ^3.10.1
   cloud_firestore: ^5.6.2
 

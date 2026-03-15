@@ -1,146 +1,212 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'firebase_options.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  runApp(const MaterialApp(
-    debugShowCheckedModeBanner: false,
-    home: SpartakApp(),
-  ));
+  await Firebase.initializeApp();
+  runApp(const SmrzovkaApp());
 }
 
-class SpartakApp extends StatefulWidget {
-  const SpartakApp({super.key});
-
-  @override
-  State<SpartakApp> createState() => _SpartakAppState();
-}
-
-class _SpartakAppState extends State<SpartakApp> {
-  int _index = 0;
-  final List<String> sekce = ['NOVINKY', 'ZÁPASY', 'STADION', 'KATEGORIE', 'VÝSLEDKY'];
-
+class SmrzovkaApp extends StatelessWidget {
+  const SmrzovkaApp({super.key});
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('TJ SPARTAK SMRŽOVKA', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF003399),
-        centerTitle: true,
-      ),
-      body: _index == 0 ? stavbaMenu() : AdminPanel(vsechnySekce: sekce),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _index,
-        onTap: (i) => setState(() => _index = i),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'MENU'),
-          BottomNavigationBarItem(icon: Icon(Icons.edit), label: 'ADMIN'),
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'FK Smržovka',
+      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      home: const HomePage(),
+    );
+  }
+}
+
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  int _selectedIndex = 0;
+
+  void _checkAdminPassword(BuildContext context) {
+    final TextEditingController passwordController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Vstup pro Admina'),
+        content: TextField(
+          controller: passwordController,
+          obscureText: true,
+          decoration: const InputDecoration(hintText: "Heslo: smrzovka2026"),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Zrušit')),
+          ElevatedButton(
+            onPressed: () {
+              if (passwordController.text == "smrzovka2026") {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminPage()));
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Špatné heslo!')));
+              }
+            },
+            child: const Text('Vstoupit'),
+          ),
         ],
       ),
     );
   }
 
-  Widget stavbaMenu() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(15),
-      itemCount: sekce.length,
-      itemBuilder: (context, i) {
-        return GestureDetector(
-          onTap: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => DetailSekce(nazevSekce: sekce[i])));
-          },
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            height: 80,
-            decoration: BoxDecoration(color: const Color(0xFF003399), borderRadius: BorderRadius.circular(10)),
-            alignment: Alignment.center,
-            child: Text(sekce[i], style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-          ),
+  @override
+  Widget build(BuildContext context) {
+    // Opraveno: odstraněna podtržítka u lokálních proměnných
+    final List<Widget> pages = [
+      _buildUserList('novinky'),
+      _buildUserList('zápasy'),
+      _buildUserList('výsledky'),
+      _buildUserList('kategorie'),
+      _buildUserList('stadion'),
+    ];
+
+    final List<String> titles = ['Novinky', 'Zápasy', 'Výsledky', 'Kategorie', 'Stadion'];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('FK Smržovka - ${titles[_selectedIndex]}'),
+        backgroundColor: Colors.blue.shade800,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(icon: const Icon(Icons.lock_outline), onPressed: () => _checkAdminPassword(context)),
+        ],
+      ),
+      body: pages[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        type: BottomNavigationBarType.fixed,
+        onTap: (index) => setState(() => _selectedIndex = index),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.article), label: 'Novinky'),
+          BottomNavigationBarItem(icon: Icon(Icons.event), label: 'Zápasy'),
+          BottomNavigationBarItem(icon: Icon(Icons.emoji_events), label: 'Výsledky'),
+          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Kategorie'),
+          BottomNavigationBarItem(icon: Icon(Icons.location_on), label: 'Stadion'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserList(String collection) {
+    return StreamBuilder(
+      stream: FirebaseFirestore.instance.collection(collection).snapshots(),
+      builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        return ListView(
+          children: snapshot.data!.docs.map((doc) => Card(
+            margin: const EdgeInsets.all(8),
+            child: ListTile(
+              title: Text(
+                doc.data().toString().contains('titulek') ? doc['titulek'] : 
+                (doc.data().toString().contains('souper') ? doc['souper'] : 
+                (doc.data().toString().contains('zapas') ? doc['zapas'] : doc['nazev'])), 
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text(
+                doc.data().toString().contains('obsah') ? doc['obsah'] : 
+                (doc.data().toString().contains('datum') ? doc['datum'] : 
+                (doc.data().toString().contains('skore') ? doc['skore'] : 
+                (doc.data().toString().contains('popis') ? doc['popis'] : doc.data().toString().contains('info') ? doc['info'] : "")))),
+            ),
+          )).toList(),
         );
       },
     );
   }
 }
 
-class DetailSekce extends StatelessWidget {
-  final String nazevSekce;
-  const DetailSekce({super.key, required this.nazevSekce});
+class AdminPage extends StatelessWidget {
+  const AdminPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(nazevSekce), backgroundColor: const Color(0xFF003399)),
-      body: StreamBuilder(
-        stream: FirebaseFirestore.instance.collection('zpravy').where('sekce', isEqualTo: nazevSekce).snapshots(),
-        builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          return ListView(
-            padding: const EdgeInsets.all(10),
-            children: snapshot.data!.docs.map((doc) => Card(
-              child: ListTile(
-                title: Text(doc['titulek'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text("${doc['datum'] ?? ''}\n${doc['info'] ?? ''}"),
-              ),
-            )).toList(),
-          );
-        },
+    return DefaultTabController(
+      length: 5,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Admin Panel'),
+          bottom: const TabBar(
+            isScrollable: true,
+            tabs: [Tab(text: "Novinky"), Tab(text: "Zápasy"), Tab(text: "Výsledky"), Tab(text: "Kategorie"), Tab(text: "Stadion")],
+          ),
+        ),
+        body: const TabBarView( // Přidáno const
+          children: [
+            AdminSection(collection: 'novinky', fields: ['titulek', 'obsah']),
+            AdminSection(collection: 'zápasy', fields: ['souper', 'datum', 'vysledek']),
+            AdminSection(collection: 'výsledky', fields: ['zapas', 'skore']),
+            AdminSection(collection: 'kategorie', fields: ['nazev', 'popis']),
+            AdminSection(collection: 'stadion', fields: ['nazev', 'info']),
+          ],
+        ),
       ),
     );
   }
 }
 
-class AdminPanel extends StatefulWidget {
-  final List<String> vsechnySekce;
-  const AdminPanel({super.key, required this.vsechnySekce});
-
-  @override
-  State<AdminPanel> createState() => _AdminPanelState();
-}
-
-class _AdminPanelState extends State<AdminPanel> {
-  final tCtrl = TextEditingController();
-  final dCtrl = TextEditingController();
-  final iCtrl = TextEditingController();
-  String vybranaSekce = 'NOVINKY';
+class AdminSection extends StatelessWidget {
+  final String collection;
+  final List<String> fields;
+  const AdminSection({super.key, required this.collection, required this.fields}); // Opraveno const a klíč
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(children: [
-        DropdownButton<String>(
-          value: vybranaSekce,
-          isExpanded: true,
-          items: widget.vsechnySekce.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-          onChanged: (val) => setState(() => vybranaSekce = val!),
+    final Map<String, TextEditingController> ctrls = {
+      for (var f in fields) f: TextEditingController()
+    };
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            children: [
+              for (var f in fields) TextField(controller: ctrls[f], decoration: InputDecoration(labelText: f)),
+              const SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: () {
+                  Map<String, dynamic> data = {};
+                  for (var f in fields) { data[f] = ctrls[f]!.text; }
+                  FirebaseFirestore.instance.collection(collection).add(data);
+                  for (var c in ctrls.values) { c.clear(); }
+                },
+                child: Text("Uložit do $collection"),
+              ),
+            ],
+          ),
         ),
-        TextField(controller: tCtrl, decoration: const InputDecoration(labelText: 'NÁZEV / SOUPEŘ')),
-        TextField(controller: dCtrl, decoration: const InputDecoration(labelText: 'DATUM')),
-        TextField(controller: iCtrl, maxLines: 3, decoration: const InputDecoration(labelText: 'POPIS')),
-        const SizedBox(height: 20),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.green, minimumSize: const Size(double.infinity, 50)),
-          onPressed: () {
-            FirebaseFirestore.instance.collection('zpravy').add({
-              'sekce': vybranaSekce,
-              'titulek': tCtrl.text,
-              'datum': dCtrl.text,
-              'info': iCtrl.text,
-              'cas': Timestamp.now()
-            });
-            tCtrl.clear();
-            dCtrl.clear();
-            iCtrl.clear();
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('POSLÁNO!')));
-          },
-          child: const Text('ODESLAT', style: TextStyle(color: Colors.white)),
-        )
-      ]),
+        const Divider(thickness: 2),
+        const Text("PRO SMAZÁNÍ KLIKNI NA POPELNICI:", style: TextStyle(fontSize: 11, color: Colors.grey)),
+        Expanded(
+          child: StreamBuilder(
+            stream: FirebaseFirestore.instance.collection(collection).snapshots(),
+            builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+              if (!snapshot.hasData) return const CircularProgressIndicator();
+              return ListView(
+                children: snapshot.data!.docs.map((doc) => ListTile(
+                  title: Text(
+                    doc.data().toString().contains('titulek') ? doc['titulek'] : 
+                    (doc.data().toString().contains('souper') ? doc['souper'] : 
+                    (doc.data().toString().contains('zapas') ? doc['zapas'] : doc['nazev']))),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => doc.reference.delete(),
+                  ),
+                )).toList(),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
