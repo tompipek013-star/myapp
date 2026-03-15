@@ -5,51 +5,101 @@ import 'package:firebase_core/firebase_core.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(const SmrzovkaApp());
+  runApp(const SpartakApp());
 }
 
-class SmrzovkaApp extends StatelessWidget {
-  const SmrzovkaApp({super.key});
+class SpartakApp extends StatelessWidget {
+  const SpartakApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'FK Smržovka',
-      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      title: 'Spartak Smržovka',
+      theme: ThemeData(
+        primarySwatch: Colors.green,
+        useMaterial3: true,
+      ),
       home: const HomePage(),
     );
   }
 }
 
-class HomePage extends StatefulWidget {
+class HomePage extends StatelessWidget {
   const HomePage({super.key});
+
   @override
-  State<HomePage> createState() => _HomePageState();
-}
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Spartak Smržovka'),
+        backgroundColor: Colors.green,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.admin_panel_settings),
+            onPressed: () => _showLoginDialog(context),
+          ),
+        ],
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('vysledky')
+            .orderBy('datum', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          
+          return ListView.builder(
+            itemCount: snapshot.data!.docs.length,
+            itemBuilder: (context, index) {
+              var doc = snapshot.data!.docs[index];
+              return Card(
+                margin: const EdgeInsets.all(8.0),
+                child: ListTile(
+                  title: Text("${doc['souper']} - ${doc['skore']}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(doc['datum']),
+                  leading: const Icon(Icons.sports_soccer, color: Colors.green),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
 
-class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 0;
-
-  void _checkAdminPassword(BuildContext context) {
-    final TextEditingController passwordController = TextEditingController();
+  void _showLoginDialog(BuildContext context) {
+    final controller = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Vstup pro Admina'),
+        title: const Text('Admin přihlášení'),
         content: TextField(
-          controller: passwordController,
+          controller: controller,
           obscureText: true,
-          decoration: const InputDecoration(hintText: "Heslo: smrzovka2026"),
+          decoration: const InputDecoration(
+            hintText: "Zadejte heslo",
+            border: OutlineInputBorder(),
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Zrušit')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Zrušit'),
+          ),
           ElevatedButton(
             onPressed: () {
-              if (passwordController.text == "smrzovka2026") {
+              if (controller.text == 'smrzovka2026') {
                 Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminPage()));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AdminPage()),
+                );
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Špatné heslo!')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Špatné heslo!')),
+                );
               }
             },
             child: const Text('Vstoupit'),
@@ -58,155 +108,68 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  @override
-  Widget build(BuildContext context) {
-    // Opraveno: odstraněna podtržítka u lokálních proměnných
-    final List<Widget> pages = [
-      _buildUserList('novinky'),
-      _buildUserList('zápasy'),
-      _buildUserList('výsledky'),
-      _buildUserList('kategorie'),
-      _buildUserList('stadion'),
-    ];
-
-    final List<String> titles = ['Novinky', 'Zápasy', 'Výsledky', 'Kategorie', 'Stadion'];
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('FK Smržovka - ${titles[_selectedIndex]}'),
-        backgroundColor: Colors.blue.shade800,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(icon: const Icon(Icons.lock_outline), onPressed: () => _checkAdminPassword(context)),
-        ],
-      ),
-      body: pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        type: BottomNavigationBarType.fixed,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.article), label: 'Novinky'),
-          BottomNavigationBarItem(icon: Icon(Icons.event), label: 'Zápasy'),
-          BottomNavigationBarItem(icon: Icon(Icons.emoji_events), label: 'Výsledky'),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Kategorie'),
-          BottomNavigationBarItem(icon: Icon(Icons.location_on), label: 'Stadion'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUserList(String collection) {
-    return StreamBuilder(
-      stream: FirebaseFirestore.instance.collection(collection).snapshots(),
-      builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        return ListView(
-          children: snapshot.data!.docs.map((doc) => Card(
-            margin: const EdgeInsets.all(8),
-            child: ListTile(
-              title: Text(
-                doc.data().toString().contains('titulek') ? doc['titulek'] : 
-                (doc.data().toString().contains('souper') ? doc['souper'] : 
-                (doc.data().toString().contains('zapas') ? doc['zapas'] : doc['nazev'])), 
-                style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text(
-                doc.data().toString().contains('obsah') ? doc['obsah'] : 
-                (doc.data().toString().contains('datum') ? doc['datum'] : 
-                (doc.data().toString().contains('skore') ? doc['skore'] : 
-                (doc.data().toString().contains('popis') ? doc['popis'] : doc.data().toString().contains('info') ? doc['info'] : "")))),
-            ),
-          )).toList(),
-        );
-      },
-    );
-  }
 }
 
-class AdminPage extends StatelessWidget {
+class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 5,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Admin Panel'),
-          bottom: const TabBar(
-            isScrollable: true,
-            tabs: [Tab(text: "Novinky"), Tab(text: "Zápasy"), Tab(text: "Výsledky"), Tab(text: "Kategorie"), Tab(text: "Stadion")],
-          ),
-        ),
-        body: const TabBarView( // Přidáno const
-          children: [
-            AdminSection(collection: 'novinky', fields: ['titulek', 'obsah']),
-            AdminSection(collection: 'zápasy', fields: ['souper', 'datum', 'vysledek']),
-            AdminSection(collection: 'výsledky', fields: ['zapas', 'skore']),
-            AdminSection(collection: 'kategorie', fields: ['nazev', 'popis']),
-            AdminSection(collection: 'stadion', fields: ['nazev', 'info']),
-          ],
-        ),
-      ),
-    );
-  }
+  State<AdminPage> createState() => _AdminPageState();
 }
 
-class AdminSection extends StatelessWidget {
-  final String collection;
-  final List<String> fields;
-  const AdminSection({super.key, required this.collection, required this.fields}); // Opraveno const a klíč
+class _AdminPageState extends State<AdminPage> {
+  final _souperController = TextEditingController();
+  final _skoreController = TextEditingController();
+
+  void _pridatVysledek() {
+    if (_souperController.text.isNotEmpty && _skoreController.text.isNotEmpty) {
+      FirebaseFirestore.instance.collection('vysledky').add({
+        'souper': _souperController.text,
+        'skore': _skoreController.text,
+        'datum': DateTime.now().toString().split(' ')[0],
+      });
+      _souperController.clear();
+      _skoreController.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Výsledek byl úspěšně přidán!')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final Map<String, TextEditingController> ctrls = {
-      for (var f in fields) f: TextEditingController()
-    };
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Column(
-            children: [
-              for (var f in fields) TextField(controller: ctrls[f], decoration: InputDecoration(labelText: f)),
-              const SizedBox(height: 10),
-              ElevatedButton(
-                onPressed: () {
-                  Map<String, dynamic> data = {};
-                  for (var f in fields) { data[f] = ctrls[f]!.text; }
-                  FirebaseFirestore.instance.collection(collection).add(data);
-                  for (var c in ctrls.values) { c.clear(); }
-                },
-                child: Text("Uložit do $collection"),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Admin Panel - Spartak'),
+        backgroundColor: Colors.green,
+        foregroundColor: Colors.white,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _souperController, 
+              decoration: const InputDecoration(labelText: 'Soupeř (např. Tanvald)'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _skoreController, 
+              decoration: const InputDecoration(labelText: 'Skóre (např. 3:1)'),
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: _pridatVysledek,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
               ),
-            ],
-          ),
+              child: const Text('Přidat výsledek na web'),
+            ),
+          ],
         ),
-        const Divider(thickness: 2),
-        const Text("PRO SMAZÁNÍ KLIKNI NA POPELNICI:", style: TextStyle(fontSize: 11, color: Colors.grey)),
-        Expanded(
-          child: StreamBuilder(
-            stream: FirebaseFirestore.instance.collection(collection).snapshots(),
-            builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-              if (!snapshot.hasData) return const CircularProgressIndicator();
-              return ListView(
-                children: snapshot.data!.docs.map((doc) => ListTile(
-                  title: Text(
-                    doc.data().toString().contains('titulek') ? doc['titulek'] : 
-                    (doc.data().toString().contains('souper') ? doc['souper'] : 
-                    (doc.data().toString().contains('zapas') ? doc['zapas'] : doc['nazev']))),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => doc.reference.delete(),
-                  ),
-                )).toList(),
-              );
-            },
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
