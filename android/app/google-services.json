@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "261061877252",
+    "project_id": "spartak-smrzovka",
+    "storage_bucket": "spartak-smrzovka.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:261061877252:android:ca826c26da55b075ab1f51",
+        "android_client_info": {
+          "package_name": "com.example.myapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0x6Q-v-aGE6mXpblynrdA_sKsfnS8hp0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:261061877252:android:ac336404db16564cab1f51",
+        "android_client_info": {
+          "package_name": "com.spartak.smrzovka"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0x6Q-v-aGE6mXpblynrdA_sKsfnS8hp0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
